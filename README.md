@@ -1,6 +1,7 @@
 <!-- ## **HunyuanVideo** -->
 
 [中文阅读](./README_zh.md)
+[日本語はこちら](./README_ja.md)
 
 <p align="center">
   <img src="./assets/logo.png"  height=100>
