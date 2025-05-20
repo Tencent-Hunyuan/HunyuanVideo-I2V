@@ -401,6 +401,12 @@ def add_inference_args(parser: argparse.ArgumentParser):
         default=1,
         help="Batch size for inference and evaluation.",
     )
+    # 20250329 pftq: vary up the CFG and steps on each video in the batch
+    group.add_argument(
+        "--variety-batch",
+        action="store_true",
+        help="Vary up the CFG and steps on each video in the batch.",
+    )
     group.add_argument(
         "--infer-steps",
         type=int,

@@ -1,3 +1,114 @@
+# **Fixes/improvements by pftq to base Hunyuan I2V code**
+ - **Major** Fixed static noise in multi-GPU due to out of sync seeds when no seed provided. See: https://github.com/Tencent/HunyuanVideo-I2V/issues/35
+ - **Major** Fixed multi-GPU slow model loading due to contention by using sequential loading + broadcasting. See: https://github.com/Tencent/HunyuanVideo-I2V/issues/36
+ - **Major** Fixed 192-frame limit (8-sec) using Riflex extension method by thu-ml to allow more frames without looping
+ - **Major** Batch mode ("--batch-size 10") implemented for multiple videos without reloading the model.
+ - Variety batch ("--variety-batch") option for varying up CFG/Steps between videos in a batch.
+ - Prompt details embedded in MP4 video metadata comments (requires ffmpeg installed: apt-get install -y ffmpeg).
+ - More useful filenames with CFG, Steps, seed, lora name, #GPUs, etc.
+ - Maintained aspect ratio and fixed edge cases (720x720 on 8 GPUs) when resizing to divide evenly among GPUs in multi-GPU spatial parallelization.
+ - Fixed "not enough values to unpack" in latent extraction for training.
+ - Bonus scripts for setVideosTo129Frames.py to batch stretch/pad your training videos to 129 frames and stageTrainingDataforDiffusionPipe.py for reformatting files for re-use in Diffusion Pipe (for Wan, Hunyuan T2V, etc)
+ 
+ Original code/repo: https://github.com/Tencent/HunyuanVideo-I2V
+
+ The install instructions on the original repo are very finicky.  My own suggested install commands (exclude the venv lines if you're not using cloud/rented):
+```
+#create once on new pod
+python -m venv venv
+git clone https://github.com/pftq/HunyuanVideo-I2V_Fixes
+mv HunyuanVideo-I2V_Fixes HunyuanVideo-I2V
+export HF_HOME=/workspace/
+source /workspace/venv/bin/activate
+pip install -r /workspace/HunyuanVideo-I2V/requirements.txt
+pip install wheel
+pip install flash_attn --no-build-isolation
+pip install xfuser==0.4.2
+pip install diffusers==0.31.0
+python -m pip install "huggingface_hub[cli]"
+cd /workspace/HunyuanVideo-I2V
+huggingface-cli download tencent/HunyuanVideo-I2V --local-dir ./ckpts
+cd ckpts
+huggingface-cli download xtuner/llava-llama-3-8b-v1_1-transformers --local-dir ./text_encoder_i2v
+huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./text_encoder_2
+cd ../
+
+#always run at the start to use persisting drive
+export HF_HOME=/workspace/
+cd /workspace/HunyuanVideo-I2V
+source /workspace/venv/bin/activate
+apt-get update
+apt-get install -y ffmpeg
+pip install ffmpeg-python
+```
+
+Example prompt for multi-GPU (8 GPUs) with batch mode + variety batch
+```
+GPUs=8
+CFG=6
+Steps=40
+Frames=241
+Batch=10
+Resolution=720p
+Size=(960 960)
+ALLOW_RESIZE_FOR_SP=1 torchrun --nproc_per_node=$GPUs \
+sample_image2video.py \
+--model HYVideo-T/2 \
+--prompt "" \
+--neg-prompt "chaotic, distortion, morphing, low quality, low resolution, static image, overexposed, deformation, bad hands, bad teeth, bad eyes, bad limbs" \
+--i2v-mode \
+--i2v-image-path "image.jpg" \
+--i2v-resolution $Resolution \
+--video-length $Frames \
+--cfg-scale $CFG \
+--infer-steps $Steps \
+--flow-reverse \
+--i2v-stability \
+--flow-shift 7.0 \
+--embedded-cfg-scale 1.0 \
+--save-path ./results \
+--video-size "${Size[@]}" \
+--batch-size $Batch \
+--variety-batch \
+--ulysses-degree $GPUs \
+--ring-degree 1 
+```
+
+For single GPU with batch mode + variety batch
+```
+CFG=6
+Steps=40
+Frames=121
+Batch=50
+python sample_image2video.py \
+--model HYVideo-T/2 \
+--prompt "" \
+--neg-prompt "" \
+--i2v-mode \
+--i2v-image-path "image.jpg" \
+--i2v-resolution 720p \
+--video-length $Frames \
+--cfg-scale $CFG \
+--infer-steps $Steps \
+--flow-reverse \
+--i2v-stability \
+--flow-shift 7.0 \
+--embedded-cfg-scale 1.0 \
+--save-path ./results \
+--video-size 960 960 \
+--batch-size $Batch \
+--use-cpu-offload \
+--variety-batch 
+```
+
+and add these if you want to use a lora (don't forget to put the slash at the end of the line above it)
+```
+--use-lora \
+--lora-scale 1 \
+--lora-path ./name-of-lora.safetensors
+```
+ <hr>
+
 <!-- ## **HunyuanVideo** -->
 
 [中文阅读](./README_zh.md)
