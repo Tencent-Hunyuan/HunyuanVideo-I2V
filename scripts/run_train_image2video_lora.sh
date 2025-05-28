@@ -33,6 +33,8 @@ params=" \
     --gradient-checkpoint \
     --ckpt-every 500 \
     --embedded-cfg-scale 6.0 \
+    --epochs 550 \
+    --final-save \
     "
 
 video_data_params=" \

@@ -728,10 +728,25 @@ class HunyuanVideoSampler(Inference):
         if isinstance(seed, torch.Tensor):
             seed = seed.tolist()
         if seed is None:
+            """
+            #Original, static noise issue on multi-GPU
             seeds = [
                 random.randint(0, 1_000_000)
                 for _ in range(batch_size * num_videos_per_prompt)
             ]
+            """
+            # 20250330 pftq: fix static noise on multi-GPU from seeds out of sync
+            seeds = []
+            if dist.is_initialized():
+                if int(os.getenv("RANK", 0)) == 0:
+                    seeds = [random.randint(0, 1_000_000) for _ in range(batch_size * num_videos_per_prompt)]
+                else:
+                    seeds = [None] * (batch_size * num_videos_per_prompt)
+                dist.broadcast_object_list(seeds, src=0)
+            else:
+                seeds = [random.randint(0, 1_000_000) for _ in range(batch_size * num_videos_per_prompt)]
+            
+            ############################
         elif isinstance(seed, int):
             seeds = [
                 seed + i
@@ -758,6 +773,43 @@ class HunyuanVideoSampler(Inference):
             )
         generator = [torch.Generator(self.device).manual_seed(seed) for seed in seeds]
         out_dict["seeds"] = seeds
+
+        ###########################
+        # 20250330 pftq: quality degradation on multi-GPU from other parameters out of sync
+        otherParams = []
+        if dist.is_initialized():
+            if int(os.getenv("RANK", 0)) == 0:
+                otherParams = [
+                                prompt,
+                                negative_prompt,
+                                infer_steps,
+                                guidance_scale,
+                                flow_shift,
+                                embedded_guidance_scale,
+                                i2v_image_path,
+                              ]
+            else:
+                otherParams = [None] * 7
+            dist.broadcast_object_list(otherParams, src=0)
+        else:
+            otherParams = [
+                                prompt,
+                                negative_prompt,
+                                infer_steps,
+                                guidance_scale,
+                                flow_shift,
+                                embedded_guidance_scale,
+                                i2v_image_path,
+                              ]
+        prompt = otherParams[0]
+        negative_prompt = otherParams[1]
+        infer_steps = otherParams[2]
+        guidance_scale = otherParams[3]
+        flow_shift = otherParams[4]
+        embedded_guidance_scale = otherParams[5]
+        i2v_image_path = otherParams[6]
+        
+        ############################
 
         if width <= 0 or height <= 0 or video_length <= 0:
             raise ValueError(
@@ -821,6 +873,7 @@ class HunyuanVideoSampler(Inference):
             if ulysses_degree != 1 or ring_degree != 1:
                 diviser = get_sequence_parallel_world_size() * 8 * 2
                 if closest_size[0] % diviser != 0 and closest_size[1] % diviser != 0:
+                    crop_size_list = generate_crop_size_list(bucket_hw_base_size, diviser)
                     xdit_crop_size_list = list(filter(lambda x: x[0] % diviser == 0 or x[1] % diviser == 0, crop_size_list))
                     xdit_aspect_ratios = np.array([round(float(h)/float(w), 5) for h, w in xdit_crop_size_list])
                     xdit_closest_size, closest_ratio = get_closest_ratio(origin_size[1], origin_size[0], xdit_aspect_ratios, xdit_crop_size_list)
@@ -841,7 +894,24 @@ class HunyuanVideoSampler(Inference):
                     logger.debug(f"xDiT resizes the input image to {xdit_closest_size}.")
                     closest_size = xdit_closest_size
 
-            resize_param = min(closest_size)
+            # 20250329 pftq: Apply aspect ratio preservation to i2v_mode
+            original_ratio = origin_size[1] / origin_size[0]
+            if original_ratio == 1:
+                height_scale_factor = closest_size[0] / origin_size[1]
+                width_scale_factor = closest_size[1] / origin_size[0]
+                if height_scale_factor < width_scale_factor:
+                    closest_size = (closest_size[0], int(closest_size[0] * original_ratio))
+                else:
+                    closest_size = (int(closest_size[1] / original_ratio), closest_size[1])
+            
+            # 20250328 fix black borders from resizing by xibosun
+            closest_size_ratio = closest_size[1] / closest_size[0]
+            if closest_size_ratio == 1. or \
+                (original_ratio > 1 and closest_size_ratio > 1) or \
+                (original_ratio < 1 and closest_size_ratio < 1):
+                resize_param = min(closest_size)
+            else:
+                resize_param = max(closest_size)
             center_crop_param = closest_size
 
             ref_image_transform = transforms.Compose([
