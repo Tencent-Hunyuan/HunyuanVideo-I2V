@@ -841,7 +841,14 @@ class HunyuanVideoSampler(Inference):
                     logger.debug(f"xDiT resizes the input image to {xdit_closest_size}.")
                     closest_size = xdit_closest_size
 
-            resize_param = min(closest_size)
+            original_ratio = origin_size[1] / origin_size[0]
+            closest_size_ratio = closest_size[1] / closest_size[0]
+            if closest_size_ratio == 1. or \
+                (original_ratio > 1 and closest_size_ratio > 1) or \
+                (original_ratio < 1 and closest_size_ratio < 1):
+                resize_param = min(closest_size)
+            else:
+                resize_param = max(closest_size)
             center_crop_param = closest_size
 
             ref_image_transform = transforms.Compose([
