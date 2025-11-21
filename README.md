@@ -42,6 +42,7 @@ This repo contains official PyTorch model definitions, pre-trained weights and i
 
 
 ## 🔥🔥🔥 News!!
+* Nov 21, 2025: 💃 We release the [HunyuanVideo-1.5](https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5), a highly efficient and powerful new foundation model.
 * Mar 13, 2025: 🚀 We release the parallel inference code for HunyuanVideo-I2V powered by [xDiT](https://github.com/xdit-project/xDiT).
 * Mar 11, 2025: 🎉 We have updated the lora training and inference code after fixing the bug.
 * Mar 07, 2025: 🔥 We have fixed the bug in our open-source version that caused ID changes. Please try the new model weights of [HunyuanVideo-I2V](https://huggingface.co/tencent/HunyuanVideo-I2V) to ensure full visual consistency in the first frame and produce higher quality videos. 
