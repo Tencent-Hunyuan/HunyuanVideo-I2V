@@ -34,6 +34,7 @@
 > [**HunyuanVideo: A Systematic Framework For Large Video Generation Model**](https://arxiv.org/abs/2412.03603)
 
 ## 🔥🔥🔥 最新动态
+* 2025年11月21日: 💃 开源 [HunyuanVideo-1.5](https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5), 新一代高效强大的视频基础模型。
 * 2025年03月13日: 🚀 开源 HunyuanVideo-I2V 多卡并行推理代码，由[xDiT](https://github.com/xdit-project/xDiT)提供。
 * 2025年03月11日: 🎉 在修复bug后我们更新了lora的训练和推理代码。
 * 2025年03月07日: 🔥 我们已经修复了开源版本中导致ID变化的bug，请尝试[HunyuanVideo-I2V](https://huggingface.co/tencent/HunyuanVideo-I2V)新的模型权重，以确保首帧完全视觉一致性，并制作更高质量的视频。
